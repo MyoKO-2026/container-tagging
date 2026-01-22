@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main        # Production (CalVer)
+      - staging     # Staging (staging-SHA)
+      - develop     # Development (develop-SHA)
+
+env:
+  MS_NAME: ${{ vars.MS_NAME }}
+  GITOPS_REPO: your-org/online-boutique-gitops
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for CalVer build count
+      
+      - name: Set environment and version
+        id: env
+        run: |
+          set -euo pipefail
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            # Production: CalVer (YYYY.MM.BUILD)
+            DATE=$(date +%Y.%m)
+            BUILD=$(git rev-list --count --since="$(date +%Y-%m-01)" HEAD)
+            echo "environment=prod" >> $GITHUB_OUTPUT
+            echo "version=v${DATE}.${BUILD}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref_name }}" == "staging" ]; then
+            # Staging: staging-SHA
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "version=staging-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          else
+            # Development: develop-SHA
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "version=dev-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Show deployment info
+        run: |
+          echo "🚀 Service: ${{ vars.MS_NAME }}"
+          echo "🌍 Environment: ${{ steps.env.outputs.environment }}"
+          echo "📦 Version: ${{ steps.env.outputs.version }}"
+          echo "📝 Commit: ${{ github.sha }}"
+      
+      - name: Build and push
+        run: |
+          echo "Building ${{ vars.MS_NAME }}:${{ steps.env.outputs.version }}"
+          # Add your docker build/push commands here

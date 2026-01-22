@@ -1,57 +1,57 @@
-name: CI
-
+name: ContainerCI
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main        # Production (CalVer)
-      - staging     # Staging (staging-SHA)
-      - develop     # Development (develop-SHA)
+    branches: [main, staging, develop]
 
 env:
   MS_NAME: ${{ vars.MS_NAME }}
-  GITOPS_REPO: your-org/online-boutique-gitops
+  REGISTRY: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # Need full history for CalVer build count
+          fetch-depth: 0
       
-      - name: Set environment and version
-        id: env
+      - name: Set version
+        id: version
         run: |
-          set -euo pipefail
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          
-          if [ "${{ github.ref_name }}" == "main" ]; then
-            # Production: CalVer (YYYY.MM.BUILD)
-            DATE=$(date +%Y.%m)
-            BUILD=$(git rev-list --count --since="$(date +%Y-%m-01)" HEAD)
-            echo "environment=prod" >> $GITHUB_OUTPUT
-            echo "version=v${DATE}.${BUILD}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.ref_name }}" == "staging" ]; then
-            # Staging: staging-SHA
-            echo "environment=staging" >> $GITHUB_OUTPUT
-            echo "version=staging-${SHORT_SHA}" >> $GITHUB_OUTPUT
-          else
-            # Development: develop-SHA
-            echo "environment=dev" >> $GITHUB_OUTPUT
-            echo "version=dev-${SHORT_SHA}" >> $GITHUB_OUTPUT
-          fi
+          SHA=$(git rev-parse --short HEAD)
+          case "${{ github.ref_name }}" in
+            main)
+              VERSION="v$(date +%Y.%m).$(git rev-list --count --since="$(date +%Y-%m-01)" HEAD)"
+              ENV="prod"
+              ;;
+            staging)
+              VERSION="staging-${SHA}"
+              ENV="staging"
+              ;;
+            *)
+              VERSION="dev-${SHA}"
+              ENV="dev"
+              ;;
+          esac
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "env=${ENV}" >> $GITHUB_OUTPUT
+          echo "🚀 ${{ vars.MS_NAME }} → ${ENV} @ ${VERSION}"
       
-      - name: Show deployment info
-        run: |
-          echo "🚀 Service: ${{ vars.MS_NAME }}"
-          echo "🌍 Environment: ${{ steps.env.outputs.environment }}"
-          echo "📦 Version: ${{ steps.env.outputs.version }}"
-          echo "📝 Commit: ${{ github.sha }}"
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
       
-      - name: Build and push
-        run: |
-          echo "Building ${{ vars.MS_NAME }}:${{ steps.env.outputs.version }}"
-          # Add your docker build/push commands here
-
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ${{ env.REGISTRY }}/${{ vars.MS_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ vars.MS_NAME }}:${{ steps.version.outputs.version }}

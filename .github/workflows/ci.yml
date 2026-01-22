@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main        # Production (CalVer)
@@ -53,3 +54,4 @@ jobs:
         run: |
           echo "Building ${{ vars.MS_NAME }}:${{ steps.env.outputs.version }}"
           # Add your docker build/push commands here
+

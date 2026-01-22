@@ -71,9 +71,11 @@ jobs:
           push: true 
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          tags: |
             ${{ env.DOCKER_REPO_PREFIX }}/${{ vars.MS_NAME }}:latest
             ${{ env.DOCKER_REPO_PREFIX }}/${{ vars.MS_NAME }}:${{ steps.env.outputs.version }}
       
+
 
 
 

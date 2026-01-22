@@ -1,5 +1,5 @@
 # container-tagging
-This repo is contagging based on branches
+This repo is con-tagging based on branches
 
 ```bash
 mkdir go-workspace

@@ -7,6 +7,7 @@ on:
 env:
   MS_NAME: ${{ vars.MS_NAME }}
   REGISTRY: ${{ secrets.DOCKERHUB_USERNAME }}
+  GITOPS_REPO: MyoKO-2026/demo-apps-gitops
 
 jobs:
   deploy:
@@ -55,3 +56,34 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ vars.MS_NAME }}:latest
             ${{ env.REGISTRY }}/${{ vars.MS_NAME }}:${{ steps.version.outputs.version }}
+
+      - name: Checkout GitOps repo
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_TOKEN }}
+          path: gitops
+      
+      - name: Install yq
+        run: |
+          sudo wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+      
+      - name: Update kustomization.yaml
+        working-directory: ./gitops
+        run: |
+          yq -i "(.images[] | select(.name == \"${{ vars.MS_NAME }}\") | .newTag) = \"${{ steps.version.outputs.version }}\"" \
+            overlays/${{ steps.version.outputs.ENV }}/kustomization.yaml
+      
+      - name: Commit and push
+        working-directory: ./gitops
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add overlays/${{ steps.version.outputs.ENV }}/kustomization.yaml
+          git commit -m "Update ${{ vars.MS_NAME }} to ${{ steps.version.outputs.version }} in ${{ steps.version.outputs.ENV }}"
+          git push
+
+      
+
+

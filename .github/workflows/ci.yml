@@ -7,7 +7,7 @@ on:
 env:
   MS_NAME: ${{ vars.MS_NAME }}
   REGISTRY: ${{ secrets.DOCKERHUB_USERNAME }}
-  GITOPS_REPO: MyoKO-2026/demo-apps-gitops
+  GITOPS_REPO: MyoKO-2026/apps-gitops
 
 jobs:
   deploy:
@@ -85,5 +85,6 @@ jobs:
           git push
 
       
+
 
 

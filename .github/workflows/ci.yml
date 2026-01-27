@@ -81,8 +81,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add overlays/${{ steps.version.outputs.ENV }}/kustomization.yaml
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "✅ No changes detected - image tag already up to date"
+            exit 0
+          fi
+          
           git commit -m "Update ${{ vars.MS_NAME }} to ${{ steps.version.outputs.version }} in ${{ steps.version.outputs.ENV }}"
           git push
+
+
 
       
 
